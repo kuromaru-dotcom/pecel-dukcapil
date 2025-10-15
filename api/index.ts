@@ -1,9 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express, { type Request, Response, NextFunction } from "express";
-import { db } from "../server/db";
+import { Pool } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-serverless';
 import { documents, users } from "../shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { insertDocumentSchema, insertUserSchema } from "../shared/schema";
+
+// Initialize database connection
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const db = drizzle({ client: pool, schema: { documents, users } });
 
 let app: express.Express | null = null;
 
