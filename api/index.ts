@@ -1,12 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import express, { type Request, Response, NextFunction } from "express";
 import { Pool } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { pgTable, text, varchar, serial, date } from "drizzle-orm/pg-core";
 import { eq, desc, sql } from "drizzle-orm";
-import { createInsertSchema } from "drizzle-zod";
 
-// Schema definitions (inline)
+// Schema definitions
 const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -31,25 +29,23 @@ const documents = pgTable("documents", {
   createdBy: text("created_by").notNull(),
 });
 
-const insertUserSchema = createInsertSchema(users).omit({ id: true });
-const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, nomorRegister: true });
-
-// Initialize database
+// Database connection
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle({ client: pool, schema: { documents, users } });
 
-let app: express.Express | null = null;
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const { method, url } = req;
+  const path = url?.split('?')[0] || '';
 
-function getApp(): express.Express {
-  if (app) return app;
+  try {
+    // Route: GET /api/documents
+    if (method === 'GET' && path === '/api/documents') {
+      const allDocuments = await db.select().from(documents).orderBy(desc(documents.id));
+      return res.status(200).json(allDocuments);
+    }
 
-  app = express();
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
-
-  // Auth routes
-  app.post("/api/auth/login", async (req: Request, res: Response) => {
-    try {
+    // Route: POST /api/auth/login
+    if (method === 'POST' && path === '/api/auth/login') {
       const { username, password } = req.body;
       
       if (!username || !password) {
@@ -67,91 +63,17 @@ function getApp(): express.Express {
       }
 
       const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ error: "Terjadi kesalahan saat login" });
+      return res.status(200).json(userWithoutPassword);
     }
-  });
 
-  // Document routes
-  app.get("/api/documents", async (req: Request, res: Response) => {
-    try {
-      const allDocuments = await db.select().from(documents).orderBy(desc(documents.id));
-      res.json(allDocuments);
-    } catch (error) {
-      console.error("Get documents error:", error);
-      res.status(500).json({ error: "Failed to fetch documents" });
-    }
-  });
+    // 404 for other routes (implement other routes as needed)
+    return res.status(404).json({ error: "Route not found" });
 
-  app.post("/api/documents", async (req: Request, res: Response) => {
-    try {
-      const validatedData = insertDocumentSchema.parse(req.body);
-      
-      const lastDoc = await db.select().from(documents).orderBy(desc(documents.id)).limit(1);
-      const nextId = lastDoc.length > 0 ? lastDoc[0].id + 1 : 1;
-      
-      const documentCodes: Record<string, string> = {
-        'KTP': '001', 'KIA': '002', 'Kartu Keluarga': '003',
-        'Pindah Keluar': '004', 'Pindah Datang': '005',
-        'Akte Lahir': '006', 'Akte Kematian': '007',
-        'Akte Kawin': '008', 'Akte Cerai': '009', 'DLL': '010'
-      };
-      
-      const docCode = documentCodes[validatedData.jenisDokumen] || '010';
-      const date = new Date(validatedData.tanggal);
-      const month = date.getMonth() + 1;
-      const romanMonths = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
-      const romanMonth = romanMonths[month - 1];
-...
-      
-      const dataToUpdate = password ? { ...updateData, password } : updateData;
-      
-      const [updated] = await db
-        .update(users)
-        .set(dataToUpdate)
-        .where(eq(users.id, id))
-        .returning({
-          id: users.id,
-          username: users.username,
-          role: users.role,
-        });
-      
-      if (!updated) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      
-      res.json(updated);
-    } catch (error) {
-      console.error("Update user error:", error);
-      res.status(500).json({ error: "Failed to update user" });
-    }
-  });
-
-  app.delete("/api/users/:id", async (req: Request, res: Response) => {
-    try {
-      const id = req.params.id;
-      await db.delete(users).where(eq(users.id, id));
-      res.status(204).send();
-    } catch (error) {
-      console.error("Delete user error:", error);
-      res.status(500).json({ error: "Failed to delete user" });
-    }
-  });
-
-  // Error handler
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    res.status(status).json({ message });
-    console.error(err);
-  });
-
-  return app;
-}
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const app = getApp();
-  return app(req as any, res as any);
+  } catch (error) {
+    console.error('API Error:', error);
+    return res.status(500).json({ 
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }
