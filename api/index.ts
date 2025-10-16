@@ -81,8 +81,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? await bcrypt.compare(password, user.password)  // Bcrypt hash
       : password === user.password;  // Plaintext (legacy)
       if (!isPasswordValid) return res.status(401).json({ error: "Username atau password salah" });
-      const { password: _, ...userWithoutPassword } = user;
-      return res.status(200).json(userWithoutPassword);
+      // Support both bcrypt hashed passwords (new users) and plaintext passwords (legacy users)
+const isPasswordValid = user.password.startsWith('$2b$') || user.password.startsWith('$2a$')
+  ? await bcrypt.compare(password, user.password)  // Bcrypt hash
+  : password === user.password;  // Plaintext (legacy)
     }
 
     if (method === 'GET' && path === '/api/users') {
