@@ -76,15 +76,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!username || !password) return res.status(400).json({ error: "Username dan password wajib diisi" });
       const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
       if (!user) return res.status(401).json({ error: "Username atau password salah" });
-      // Support both plaintext (legacy) and bcrypt hashed passwords
-      const isPasswordValid = user.password.startsWith('$2b$') || user.password.startsWith('$2a$')
-      ? await bcrypt.compare(password, user.password)  // Bcrypt hash
-      : password === user.password;  // Plaintext (legacy)
-      if (!isPasswordValid) return res.status(401).json({ error: "Username atau password salah" });
+      
       // Support both bcrypt hashed passwords (new users) and plaintext passwords (legacy users)
-const isPasswordValid = user.password.startsWith('$2b$') || user.password.startsWith('$2a$')
-  ? await bcrypt.compare(password, user.password)  // Bcrypt hash
-  : password === user.password;  // Plaintext (legacy)
+      const isPasswordValid = user.password.startsWith('$2b$') || user.password.startsWith('$2a$')
+        ? await bcrypt.compare(password, user.password)
+        : password === user.password;
+      
+      if (!isPasswordValid) return res.status(401).json({ error: "Username atau password salah" });
+      const { password: _, ...userWithoutPassword } = user;
+      return res.status(200).json(userWithoutPassword);
     }
 
     if (method === 'GET' && path === '/api/users') {
