@@ -82,24 +82,63 @@ export default function PrintReceipt({ document }: PrintReceiptProps) {
     <div className="print:block">
       <style>{`
         @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print-container, .print-container * {
-            visibility: visible;
-          }
-          .print-container {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          .no-print {
-            display: none !important;
-          }
           @page {
             size: A4;
             margin: 1.5cm;
+          }
+          
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          body {
+            background: white !important;
+          }
+          
+          /* Hide everything except ancestors of print-container */
+          body > *:not(:has(.print-container)) {
+            display: none !important;
+          }
+          
+          /* Hide siblings of ancestors */
+          [role="dialog"] ~ *,
+          [role="dialog"] [role="dialog"] ~ * {
+            display: none !important;
+          }
+          
+          /* Reset dialog positioning and styling */
+          [role="dialog"] {
+            position: static !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            transform: none !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          
+          /* Hide dialog overlays and UI elements */
+          [data-radix-dialog-overlay],
+          [aria-label="Close"],
+          header,
+          nav,
+          footer,
+          .no-print {
+            display: none !important;
+          }
+          
+          /* Ensure print container is visible */
+          .print-container {
+            display: block !important;
+            position: static !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 20px !important;
           }
         }
       `}</style>
