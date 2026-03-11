@@ -6,12 +6,11 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        lg: ".5625rem", /* 9px */
-        md: ".375rem", /* 6px */
-        sm: ".1875rem", /* 3px */
+        lg: ".5625rem",
+        md: ".375rem",
+        sm: ".1875rem",
       },
       colors: {
-        // Flat / base colors (regular buttons)
         background: "hsl(var(--background) / <alpha-value>)",
         foreground: "hsl(var(--foreground) / <alpha-value>)",
         border: "hsl(var(--border) / <alpha-value>)",
@@ -80,6 +79,25 @@ export default {
           away: "rgb(245 158 11)",
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
+        },
+        document: {
+          yellow: "hsl(45 85% 60%)",
+          green: "hsl(150 60% 45%)",
+          blue: "hsl(215 85% 55%)",
+          orange: "hsl(35 90% 60%)",
+          red: "hsl(0 85% 60%)",
+        },
+        warm: {
+          50: "hsl(35 30% 95%)",
+          100: "hsl(35 28% 92%)",
+          200: "hsl(35 25% 90%)",
+          300: "hsl(35 22% 80%)",
+          400: "hsl(35 20% 70%)",
+          500: "hsl(35 18% 60%)",
+          600: "hsl(35 16% 50%)",
+          700: "hsl(35 14% 40%)",
+          800: "hsl(25 20% 30%)",
+          900: "hsl(25 25% 20%)",
         },
       },
       fontFamily: {

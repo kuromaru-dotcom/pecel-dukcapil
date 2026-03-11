@@ -1,38 +1,124 @@
-import { type User, type InsertUser } from "@shared/schema";
+import { type User, type InsertUser, type Document, type InsertDocument, documents as documentsTable, users as usersTable } from "@shared/schema";
 import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
+import { generateRegisterNumber } from "./registerUtils";
+import { hashPassword } from "./auth";
 
 export interface IStorage {
+  getAllUsers(): Promise<Omit<User, 'password'>[]>;
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createUser(user: InsertUser): Promise<Omit<User, 'password'>>;
+  updateUser(id: string, user: Partial<InsertUser>): Promise<Omit<User, 'password'> | undefined>;
+  deleteUser(id: string): Promise<boolean>;
+  
+  getAllDocuments(): Promise<Document[]>;
+  getDocument(id: number): Promise<Document | undefined>;
+  createDocument(doc: InsertDocument): Promise<Document>;
+  updateDocument(id: number, doc: Partial<InsertDocument>): Promise<Document | undefined>;
+  deleteDocument(id: number): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DbStorage implements IStorage {
+  async getAllUsers(): Promise<Omit<User, 'password'>[]> {
+    const users = await db.query.users.findMany({
+      orderBy: (users, { asc }) => [asc(users.username)],
+    });
+    return users.map(({ password, ...user }) => user);
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.id, id),
+    });
+    return result;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const result = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.username, username),
+    });
+    return result;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async createUser(insertUser: InsertUser): Promise<Omit<User, 'password'>> {
+    const hashedPassword = await hashPassword(insertUser.password);
+    const [user] = await db.insert(usersTable).values({
+      ...insertUser,
+      password: hashedPassword
+    }).returning();
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+
+  async updateUser(id: string, user: Partial<InsertUser>): Promise<Omit<User, 'password'> | undefined> {
+    const updateData = user.password 
+      ? { ...user, password: await hashPassword(user.password) }
+      : user;
+    
+    const [updated] = await db
+      .update(usersTable)
+      .set(updateData)
+      .where(eq(usersTable.id, id))
+      .returning();
+    if (!updated) return undefined;
+    const { password, ...userWithoutPassword } = updated;
+    return userWithoutPassword;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    await db
+      .delete(usersTable)
+      .where(eq(usersTable.id, id));
+    return true;
+  }
+
+  async getAllDocuments(): Promise<Document[]> {
+    return await db.query.documents.findMany({
+      orderBy: (documents, { asc }) => [asc(documents.id)],
+    });
+  }
+
+  async getDocument(id: number): Promise<Document | undefined> {
+    return await db.query.documents.findFirst({
+      where: (documents, { eq }) => eq(documents.id, id),
+    });
+  }
+
+  async createDocument(doc: InsertDocument): Promise<Document> {
+    const tempRegister = `TEMP-${randomUUID()}`;
+    const [document] = await db.insert(documentsTable).values({
+      ...doc,
+      nomorRegister: tempRegister,
+    }).returning();
+    
+    const nomorRegister = generateRegisterNumber(document.id, doc.jenisDokumen, doc.tanggal);
+    
+    const [updatedDocument] = await db
+      .update(documentsTable)
+      .set({ nomorRegister })
+      .where(eq(documentsTable.id, document.id))
+      .returning();
+    
+    return updatedDocument;
+  }
+
+  async updateDocument(id: number, doc: Partial<InsertDocument>): Promise<Document | undefined> {
+    const [updated] = await db
+      .update(documentsTable)
+      .set(doc)
+      .where(eq(documentsTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDocument(id: number): Promise<boolean> {
+    await db
+      .delete(documentsTable)
+      .where(eq(documentsTable.id, id));
+    return true;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DbStorage();
