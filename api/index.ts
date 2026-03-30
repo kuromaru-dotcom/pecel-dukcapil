@@ -63,6 +63,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { method, url } = req;
   const path = url?.split('?')[0] || '';
 
+  // Ensure body is parsed as object (Vercel sometimes passes raw string)
+  if (req.body && typeof req.body === 'string') {
+    try { (req as any).body = JSON.parse(req.body); } catch {}
+  }
+
   try {
     if (method === 'GET' && path === '/api/documents') {
       const allDocuments = await db.select().from(documents).orderBy(desc(documents.id));
