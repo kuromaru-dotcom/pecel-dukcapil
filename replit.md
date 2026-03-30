@@ -43,6 +43,22 @@
 - Operator: Andi Wijaya (andi123), Budi Hartono (budi123)
 - Super Admin: Admin Dukcapil (admin123)
 
+## Deployment
+
+### Replit (Development)
+- Uses Replit built-in PostgreSQL (DATABASE_URL)
+- Express server with sessions + WebSocket on port 5000
+- `npm run dev` starts both backend and frontend
+
+### Vercel + Supabase (Production)
+- Frontend: Vite build → `dist/public/` (static files served by Vercel)
+- Backend: Serverless function at `api/index.ts` (stateless, no sessions/WebSocket)
+- Database: Supabase PostgreSQL via pooler connection
+- Vercel env vars needed: `DATABASE_URL` (Supabase pooler URI), `SESSION_SECRET`
+- Config: `vercel.json` (rewrites API calls to serverless function, SPA fallback)
+- Supabase project ref: `nozokuqrtecpkcumfmhb` (region: ap-northeast-2)
+- Supabase pooler: `aws-1-ap-northeast-2.pooler.supabase.com:6543`
+
 ## File Structure
 - `shared/schema.ts` - Drizzle schema + types
 - `shared/validation.ts` - Zod validation schemas
@@ -53,6 +69,8 @@
 - `server/websocket.ts` - WebSocket manager
 - `server/seed.ts` - Database seeding
 - `server/registerUtils.ts` - Register number generation
+- `api/index.ts` - Vercel serverless API function
+- `vercel.json` - Vercel deployment configuration
 - `client/src/pages/Home.tsx` - Main document table page
 - `client/src/pages/Dashboard.tsx` - Public dashboard with auto-scroll
 - `client/src/pages/Analytics.tsx` - Charts and statistics

@@ -6,6 +6,10 @@
     {
       "source": "/api/(.*)",
       "destination": "/api"
+    },
+    {
+      "source": "/((?!api|assets|favicon).*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
